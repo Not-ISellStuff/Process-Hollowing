@@ -1,14 +1,15 @@
 # Process-Hollowing
-Basic program written in c that injects shellcode into a "legitimate" process (Process Hollowing)
+Basic program written in c that starts a "legitimate" process and injects shell code (Process Hollowing)
 
-I mention this in my code but this was not made to be used for anything, this is just an example.
+This was not made to be used for anything, this is just an example.
 
-The code extracts raw shell code from the binary (isell.bin)
+The code extracts the shell code from the binary (isell.bin)
 
 # What is Process Hollowing?
 
 ```
-Process Hollowing is a method used to avoid getting the attention of an anti-virus
+Process Hollowing is a method used to avoid getting the attention of an anti-virus.
+It starts a trusted process like notepad and makes it execute code
 
 This is used in malware.
 It injects code into a legitimate/trusted process in order to avoid being detected.
